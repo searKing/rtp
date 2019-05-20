@@ -7,6 +7,7 @@ import (
 
 // Payloader payloads a byte array for use as rtp.Packet payloads
 type Payloader interface {
+	// Payload fragments a H264 packet across one or more byte arrays
 	Payload(mtu int, payload []byte) [][]byte
 }
 
@@ -24,7 +25,8 @@ type packetizer struct {
 	Sequencer        Sequencer
 	Timestamp        uint32
 	ClockRate        uint32
-	extensionNumbers struct { //put extension numbers in here. If they're 0, the extension is disabled (0 is not a legal extension number)
+	extensionNumbers struct {
+		//put extension numbers in here. If they're 0, the extension is disabled (0 is not a legal extension number)
 		AbsSendTime int //http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time
 	}
 	timegen func() time.Time
@@ -95,9 +97,18 @@ func (p *packetizer) Packetize(payload []byte, samples uint32) []*Packet {
 	if len(packets) != 0 && p.extensionNumbers.AbsSendTime != 0 {
 		t := toNtpTime(p.timegen()) >> 14
 		//apply http://www.webrtc.org/experiments/rtp-hdrext/abs-send-time
+		//	0                   1                   2                   3
+		//	0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+		//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		//	|      0xBE     |      0xDE     |            length=2           |
+		//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		//	|  ID   | len=6 |                RTT                            |
+		//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+		//	|                     send timestamp  (t_i)                     |
+		//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 		packets[len(packets)-1].Header.Extension = true
-		packets[len(packets)-1].ExtensionProfile = 0xBEDE
-		packets[len(packets)-1].ExtensionPayload = []byte{
+		packets[len(packets)-1].Header.ExtensionProfile = 0xBEDE
+		packets[len(packets)-1].Header.ExtensionPayload = []byte{
 			//the first byte is
 			// 0 1 2 3 4 5 6 7
 			//+-+-+-+-+-+-+-+-+
@@ -105,7 +116,13 @@ func (p *packetizer) Packetize(payload []byte, samples uint32) []*Packet {
 			//+-+-+-+-+-+-+-+-+
 			//per RFC 5285
 			//Len is the number of bytes in the extension - 1
-
+			// Wire format: 1-byte extension, 3 bytes of data.
+			// total 4 bytes extra per packet
+			// (plus shared 4 bytes for all extensions present:
+			// 		2 byte magic word 0xBEDE, 2 byte # of extensions).
+			// 	Will in practice replace the “toffset” extension so we should see no long term increase in traffic as a result.
+			// Encoding: Timestamp is in seconds, 24 bit 6.18 fixed point, yielding 64s wraparound and 3.8us resolution (one increment for each 477 bytes going out on a 1Gbps interface).
+			// Relation to NTP timestamps: abs_send_time_24 = (ntp_timestamp_64 » 14) & 0x00ffffff ; NTP timestamp is 32 bits for whole seconds, 32 bits fraction of second.
 			byte((p.extensionNumbers.AbsSendTime << 4) | 2),
 			byte(t & 0xFF0000 >> 16),
 			byte(t & 0xFF00 >> 8),

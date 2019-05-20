@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pion/rtp/codecs"
+	"github.com/searKing/rtp/codecs"
 	"github.com/stretchr/testify/assert"
 )
 

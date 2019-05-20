@@ -1,16 +1,32 @@
 package codecs
 
+import (
+	"bytes"
+	"github.com/searKing/rtp/codecs/h264"
+	"github.com/searKing/rtp/format"
+)
+
 // H264Payloader payloads H264 packets
 type H264Payloader struct{}
 
 const (
 	fuaHeaderSize = 2
+
+	fuHeaderStartBitMask   = 1 << fuHeaderStartBitOffset
+	fuHeaderStartBitOffset = 7
+	fuHeaderEndBitMask     = 1 << fuHeaderEndBitOffset
+	fuHeaderEndBitOffset   = 6
+
+	fuHeaderNalUnitTypeMask   = 0x1f
+	fuHeaderNalUnitTypeOffset = 0
 )
 
 func emitNalus(nals []byte, emit func([]byte)) {
+	// for leading code, such as 0x 00 00 00 01, 0x00's count must be more than one, 0x00 00 01 at least
 	nextInd := func(nalu []byte, start int) (indStart int, indLen int) {
 		zeroCount := 0
 
+		// 0x00 00 00 01
 		for i, b := range nalu[start:] {
 			if b == 0 {
 				zeroCount++
@@ -24,21 +40,20 @@ func emitNalus(nals []byte, emit func([]byte)) {
 		}
 		return -1, -1
 	}
-
-	nextIndStart, nextIndLen := nextInd(nals, 0)
-	if nextIndStart == -1 {
-		emit(nals)
-	} else {
-		for nextIndStart != -1 {
-			prevStart := nextIndStart + nextIndLen
-			nextIndStart, nextIndLen = nextInd(nals, prevStart)
-			if nextIndStart != -1 {
-				emit(nals[prevStart:nextIndStart])
-			} else {
-				// Emit until end of stream, no end indicator found
-				emit(nals[prevStart:])
-			}
+	nextIndStart := 0
+	nextIndLen := 0
+	for {
+		prevStart := nextIndStart + nextIndLen
+		nextIndStart, nextIndLen = nextInd(nals, prevStart)
+		if nextIndStart == -1 {
+			// Emit until end of stream, no end indicator found
+			emit(nals[prevStart:])
+			return
 		}
+		if prevStart == 0 {
+			continue
+		}
+		emit(nals[prevStart:nextIndStart])
 	}
 }
 
@@ -51,10 +66,10 @@ func (p *H264Payloader) Payload(mtu int, payload []byte) [][]byte {
 	}
 
 	emitNalus(payload, func(nalu []byte) {
-		naluType := nalu[0] & 0x1F
-		naluRefIdc := nalu[0] & 0x60
-
-		if naluType == 9 || naluType == 12 {
+		//naluType := nalu[0] & h264.NalUnitTypeMask
+		naluType := h264.ParseNalUnitType(nalu)
+		naluRefIdc := h264.ParseNalRefIdc(nalu)
+		if naluType == h264.NalUnitTypeAud || naluType == h264.NalUnitTypeFillerData {
 			return
 		}
 
@@ -92,33 +107,36 @@ func (p *H264Payloader) Payload(mtu int, payload []byte) [][]byte {
 
 		for naluDataRemaining > 0 {
 			currentFragmentSize := min(maxFragmentSize, naluDataRemaining)
-			out := make([]byte, fuaHeaderSize+currentFragmentSize)
 
 			// +---------------+
 			// |0|1|2|3|4|5|6|7|
 			// +-+-+-+-+-+-+-+-+
 			// |F|NRI|  Type   |
 			// +---------------+
-			out[0] = 28
-			out[0] |= naluRefIdc
+			// fuIndicator
+			fuIndicator := format.RTPPacketTypeFuA.Byte()
+			fuIndicator |= naluRefIdc.Byte()
 
 			// +---------------+
-			//|0|1|2|3|4|5|6|7|
-			//+-+-+-+-+-+-+-+-+
-			//|S|E|R|  Type   |
-			//+---------------+
+			// |0|1|2|3|4|5|6|7|
+			// +-+-+-+-+-+-+-+-+
+			// |S|E|R|  Type   |
+			// +---------------+
+			// fuHeader
+			fuHeader := naluType.Byte()
 
-			out[1] = naluType
 			if naluDataRemaining == naluDataLength {
 				// Set start bit
-				out[1] |= 1 << 7
+				fuHeader |= fuHeaderStartBitMask
 			} else if naluDataRemaining-currentFragmentSize == 0 {
 				// Set end bit
-				out[1] |= 1 << 6
+				fuHeader |= fuHeaderEndBitMask
 			}
-
-			copy(out[fuaHeaderSize:], naluData[naluDataIndex:naluDataIndex+currentFragmentSize])
-			payloads = append(payloads, out)
+			w := bytes.NewBuffer(make([]byte, fuaHeaderSize+currentFragmentSize))
+			w.WriteByte(fuIndicator)
+			w.WriteByte(fuHeader)
+			w.Write(naluData[naluDataIndex : naluDataIndex+currentFragmentSize])
+			payloads = append(payloads, w.Bytes())
 
 			naluDataRemaining -= currentFragmentSize
 			naluDataIndex += currentFragmentSize
