@@ -8,7 +8,7 @@ import "fmt"
 //  |F|   Type    |  LayerId  | TID |
 //	+-------------+-----------------+
 const (
-	NalUnitTypeMask      = 0x3f
+	NalUnitTypeMask      = 0x3f << NalUnitTypeOffset
 	NalUnitTypeOffset    = 1
 	NalUnitTypeByteIndex = 0
 )

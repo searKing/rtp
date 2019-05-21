@@ -5,7 +5,7 @@ import "github.com/searKing/rtp/codecs/hevc"
 const (
 	FuHeaderMask      = 0xff
 	FuHeaderOffset    = 0
-	FuHeaderByteIndex = 1
+	FuHeaderByteIndex = 2
 
 	FuHeaderStartBitMask      = 1 << FuHeaderStartBitOffset
 	FuHeaderStartBitOffset    = 7
@@ -15,9 +15,9 @@ const (
 	FuHeaderEndBitOffset    = 6
 	FuHeaderEndBitByteIndex = 0
 
-	FuHeaderFuTypeMask      = hevc.NalUnitTypeMask
-	FuHeaderFuTypeOffset    = hevc.NalUnitTypeOffset
-	FuHeaderFuTypeByteIndex = hevc.NalUnitTypeByteIndex
+	FuHeaderFuTypeMask      = 0x3f
+	FuHeaderFuTypeOffset    = 0
+	FuHeaderFuTypeByteIndex = 0
 )
 
 // +---------------+
@@ -38,7 +38,7 @@ func (h FuHeader) Byte() byte {
 }
 
 func (h FuHeader) Marshal() ([]byte, error) {
-	fuHeader := h.FuType.Byte()
+	fuHeader := (h.FuType & FuHeaderFuTypeMask) << FuHeaderFuTypeOffset
 	if h.StartBit {
 		fuHeader |= FuHeaderStartBitMask
 	}
@@ -53,7 +53,7 @@ func (h FuHeader) Marshal() ([]byte, error) {
 func (h *FuHeader) Unmarshal(buf []byte) error {
 	h.StartBit = (buf[0] & FuHeaderStartBitMask) != 0
 	h.EndBit = (buf[0] & FuHeaderEndBitMask) != 0
-	_ = (&h.FuType).Unmarshal(buf)
+	h.FuType = hevc.NalUnitType(buf[0] & FuHeaderFuTypeMask >> FuHeaderFuTypeOffset)
 	return nil
 }
 
