@@ -1,4 +1,4 @@
-package h264
+package hevc
 
 import (
 	"bytes"
@@ -27,7 +27,8 @@ func (p *Packet) Unmarshal(payload []byte) error {
 	payloadIndex := 0
 	_ = (&p.NalHeader).Unmarshal(payload[NalHeaderByteIndex:])
 
-	payloadIndex++
+	// jump to payload
+	payloadIndex += 2
 
 	w := bytes.NewBuffer(nil)
 	w.Write(payload[payloadIndex:])
@@ -36,24 +37,25 @@ func (p *Packet) Unmarshal(payload []byte) error {
 }
 
 // Marshal serializes the header into bytes.
-func (p Packet) Marshal() ([]byte, error) {
+func (p *Packet) Marshal() ([]byte, error) {
 	// avoid buf alloc
 	w := bytes.NewBuffer(make([]byte, 0, p.MarshalSize()))
-	w.WriteByte(p.NalHeader.Byte())
+	w.Write(p.NalHeader.Bytes())
+
 	w.Write(p.Payload)
 	return w.Bytes(), nil
 }
 
 // MarshalSize returns the size of the header once marshaled.
-func (p Packet) MarshalSize() int {
+func (p *Packet) MarshalSize() int {
 	// NOTE: Be careful to match the MarshalTo() method.
 	size := p.NalHeader.MarshalSize() + len(p.Payload)
 	return size
 }
 
 // String helps with debugging by printing packet information in a readable way
-func (p Packet) String() string {
-	out := "H264 Packet:\n"
+func (p *Packet) String() string {
+	out := "HEVC Packet:\n"
 
 	out += fmt.Sprintf("\t%s\n", p.NalHeader)
 	out += fmt.Sprintf("\tPayload Length: %d\n", len(p.Payload))

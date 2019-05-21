@@ -1,4 +1,4 @@
-package codecs
+package format
 
 // G722Payloader payloads G722 packets
 type G722Payloader struct{}

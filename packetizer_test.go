@@ -2,10 +2,10 @@ package rtp
 
 import (
 	"fmt"
+	"github.com/searKing/rtp/format"
 	"testing"
 	"time"
 
-	"github.com/searKing/rtp/codecs"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -30,7 +30,7 @@ func TestNtpConversion(t *testing.T) {
 func TestPacketizer(t *testing.T) {
 	multiplepayload := make([]byte, 128)
 	//use the G722 payloader here, because it's very simple and all 0s is valid G722 data.
-	packetizer := NewPacketizer(100, 98, 0x1234ABCD, &codecs.G722Payloader{}, NewRandomSequencer(), 90000)
+	packetizer := NewPacketizer(100, 98, 0x1234ABCD, &format.G722Payloader{}, NewRandomSequencer(), 90000)
 	packets := packetizer.Packetize(multiplepayload, 2000)
 
 	if len(packets) != 2 {

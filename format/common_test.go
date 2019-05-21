@@ -1,4 +1,4 @@
-package codecs
+package format
 
 import (
 	"testing"

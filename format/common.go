@@ -1,4 +1,4 @@
-package codecs
+package format
 
 func min(a, b int) int {
 	if a < b {
