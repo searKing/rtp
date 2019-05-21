@@ -1,4 +1,4 @@
-module github.com/pion/rtp
+module github.com/searKing/rtp
 
 go 1.12
 
