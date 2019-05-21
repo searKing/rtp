@@ -6,7 +6,7 @@ import (
 )
 
 // H264Packet represents the H264 header that is stored in the payload of an RTP Packet
-type H264Packet struct {
+type Packet struct {
 	// Required Header
 	NalRefIdc   NalRefIdc
 	NalUnitType NalUnitType
@@ -15,7 +15,7 @@ type H264Packet struct {
 }
 
 // Unmarshal parses the passed byte slice and stores the result in the VP8Packet this method is called upon
-func (p *H264Packet) Unmarshal(payload []byte) error {
+func (p *Packet) Unmarshal(payload []byte) error {
 	if payload == nil {
 		return fmt.Errorf("invalid nil packet")
 	}
@@ -45,7 +45,7 @@ func (p *H264Packet) Unmarshal(payload []byte) error {
 }
 
 // String helps with debugging by printing packet information in a readable way
-func (p *H264Packet) String() string {
+func (p *Packet) String() string {
 	out := "H264 Packet:\n"
 
 	out += fmt.Sprintf("\tNalRefIdc: %v\n", p.NalRefIdc)
@@ -56,7 +56,7 @@ func (p *H264Packet) String() string {
 }
 
 // Marshal serializes the header into bytes.
-func (p *H264Packet) Marshal() ([]byte, error) {
+func (p *Packet) Marshal() ([]byte, error) {
 	// avoid buf alloc
 	w := bytes.NewBuffer(make([]byte, 0, p.MarshalSize()))
 	byte0 := p.NalRefIdc.Byte()
@@ -67,7 +67,7 @@ func (p *H264Packet) Marshal() ([]byte, error) {
 }
 
 // MarshalSize returns the size of the header once marshaled.
-func (p *H264Packet) MarshalSize() int {
+func (p *Packet) MarshalSize() int {
 	// NOTE: Be careful to match the MarshalTo() method.
 	size := 1 + len(p.Payload)
 	return size
