@@ -1,5 +1,7 @@
 package h264
 
+import "fmt"
+
 const (
 	NalUnitTypeMask = 0x1f
 
@@ -14,10 +16,82 @@ const (
  */
 type NalUnitType uint8
 
+func (naluType NalUnitType) String() string {
+	switch naluType {
+	case NalUnitTypeUnspecified:
+		return "unspecified"
+	case NalUnitTypeSlice:
+		return "slice"
+	case NalUnitTypeDpa:
+		return "dpa"
+	case NalUnitTypeDpb:
+		return "dpb"
+	case NalUnitTypeDpc:
+		return "dpc"
+	case NalUnitTypeIdrSlice:
+		return "idr slice"
+	case NalUnitTypeSei:
+		return "sei"
+	case NalUnitTypeSps:
+		return "sps"
+	case NalUnitTypePps:
+		return "pps"
+	case NalUnitTypeAud:
+		return "aud"
+	case NalUnitTypeEndSequence:
+		return "end sequence"
+	case NalUnitTypeEndStream:
+		return "end stream"
+	case NalUnitTypeFillerData:
+		return "filler data"
+	case NalUnitTypeSpsExt:
+		return "sps ext"
+	case NalUnitTypePrefix:
+		return "prefix"
+	case NalUnitTypeSubSps:
+		return "sub sps"
+	case NalUnitTypeDps:
+		return "dps"
+	case NalUnitTypeReserved17:
+		return "reserved 17"
+	case NalUnitTypeReserved18:
+		return "reserved 18"
+	case NalUnitTypeAuxiliarySlice:
+		return "auxiliary slice"
+	case NalUnitTypeExtenSlice:
+		return "exten slice"
+	case NalUnitTypeDepthExtenSlice:
+		return "depth exten slice"
+	case NalUnitTypeReserved22:
+		return "reserved 22"
+	case NalUnitTypeReserved23:
+		return "reserved 23"
+	case NalUnitTypeUnspecified24:
+		return "unspecified 24"
+	case NalUnitTypeUnspecified25:
+		return "unspecified 25"
+	case NalUnitTypeUnspecified26:
+		return "unspecified 26"
+	case NalUnitTypeUnspecified27:
+		return "unspecified 27"
+	case NalUnitTypeUnspecified28:
+		return "unspecified 28"
+	case NalUnitTypeUnspecified29:
+		return "unspecified 29"
+	case NalUnitTypeUnspecified30: // 30
+		return "unspecified 30"
+	case NalUnitTypeUnspecified31: // 31
+		return "unspecified 31"
+	default:
+		return fmt.Sprintf("unknown nalu type %d", naluType)
+	}
+}
+
 func (naluType NalUnitType) Byte() byte {
 	b, _ := naluType.Marshal()
 	return b[0]
 }
+
 func (naluType NalUnitType) Marshal() ([]byte, error) {
 	return []byte{byte(naluType)}, nil
 }
